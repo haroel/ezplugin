@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.lanwan.globalTycoon"
+    android:installLocation="auto">
+
+    <uses-feature android:glEsVersion="0x00020000" />
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:usesCleartextTraffic="true"
+        android:icon="@mipmap/ic_launcher"
+        android:appComponentFactory="com.lanwan.globalTycoon"
+        tools:replace="android:appComponentFactory">
+        <!-- Tell Cocos2dxActivity the name of our .so -->
+        <meta-data android:name="android.app.lib_name"
+                   android:value="cocos2djs" />
+
+        <!--  注册游戏w service，使用service模式的ws将更稳定，不会被其他操作打断导致断线重连 -->
+        <service android:name="sockets.SocketService"
+            android:label="@string/app_name"
+            android:icon="@mipmap/ic_launcher"
+            android:exported="false"/>
+
+        <activity
+            android:name="org.cocos2dx.javascript.AppActivity"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:launchMode="singleTask"
+            android:taskAffinity="" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="globaltycoon"/>
+            </intent-filter>
+        </activity>
+        <!-- Facebook begin-->
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+        <activity android:name="com.facebook.FacebookActivity"
+            android:configChanges= "keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:label="@string/app_name" />
+        <activity android:name="com.facebook.CustomTabActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="@string/fb_login_protocol_scheme" />
+            </intent-filter>
+        </activity>
+
+
+        <!-- Facebook end-->
+
+        <!-- AdMob begin-->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-4155862935870750~8981788478"/>
+        <!-- AdMob end-->
+
+    </application>
+
+</manifest>
