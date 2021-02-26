@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.sixgamers.brainstorm"
+    android:installLocation="auto">
+
+    <uses-feature android:glEsVersion="0x00020000" />
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.READ_LOGS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+<!--    <uses-permission android:name="com.android.vending.BILLING" />-->
+<!--    <uses-permission android:name="com.farsitel.bazaar.permission.PAY_THROUGH_BAZAAR" />-->
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:usesCleartextTraffic="true"
+        android:icon="@mipmap/ic_launcher"
+        android:appComponentFactory="com.sixgamers.brainstorm"
+        tools:replace="android:appComponentFactory">
+        <!-- Tell Cocos2dxActivity the name of our .so -->
+        <meta-data android:name="android.app.lib_name"
+                   android:value="cocos2djs" />
+        
+        <activity
+            android:name="org.cocos2dx.javascript.AppActivity"
+            android:screenOrientation="unspecified"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:launchMode="singleTask"
+            android:taskAffinity="" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="brainstorm"/>
+            </intent-filter>
+        </activity>
+
+        <!--google广告-->
+        <meta-data
+            android:name="com.google.android.gms.ads.AD_MANAGER_APP"
+            android:value="true" />
+
+        <!--play 安装参数-->
+        <receiver android:name="com.ezplugin.broadcast.InstallReferrerReceiver" android:exported="true">
+            <intent-filter>
+                <!--接受GooglePlay安装打开传来的参数-->
+                <action android:name="com.android.vending.INSTALL_REFERRER" />
+            </intent-filter>
+        </receiver>
+
+        <!--  FCM 推送服务-->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+        <service
+            android:name="com.ezplugin.services.GameFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <uses-library android:name="org.apache.http.legacy" android:required="false"/>
+
+        <!--  注册游戏 Websocket service，使用service模式的ws将更稳定，不会被其他操作打断导致断线重连 -->
+        <!-- <service android:name="sockets.SocketService"
+            android:label="LanwanSocketService"
+            android:icon="@mipmap/ic_launcher"
+            android:exported="false"/> -->
+            
+        <!-- Facebook begin-->
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+        <activity android:name="com.facebook.FacebookActivity"
+            android:configChanges= "keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:label="@string/app_name" />
+        <activity android:name="com.facebook.CustomTabActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="@string/fb_login_protocol_scheme" />
+            </intent-filter>
+        </activity>
+        <!-- Facebook end-->
+        
+        <meta-data
+            android:name="BUGLY_APPID"
+            android:value="2c2d383f70" />
+        <meta-data
+            android:name="com.ezplugin.initialPlugins"
+            android:value="PluginOS,PluginFirebase,PluginInstallReferrer,PluginBugly" />
+    </application>
+
+</manifest>

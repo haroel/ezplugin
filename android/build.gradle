@@ -1,0 +1,403 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion PROP_COMPILE_SDK_VERSION.toInteger()
+    buildToolsVersion PROP_BUILD_TOOLS_VERSION
+
+    def currentVersionCode = getVersionCode()
+
+    defaultConfig {
+        applicationId "com.sixgamers.brainstorm"
+        minSdkVersion PROP_MIN_SDK_VERSION
+        targetSdkVersion PROP_TARGET_SDK_VERSION
+        versionCode currentVersionCode
+        versionName "1.0.0"
+        multiDexEnabled true
+        flavorDimensions "default"
+        externalNativeBuild {
+            ndkBuild {
+                if (!project.hasProperty("PROP_NDK_MODE") || PROP_NDK_MODE.compareTo('none') != 0) {
+                    // skip the NDK Build step if PROP_NDK_MODE is none
+                    targets 'cocos2djs'
+                    arguments 'NDK_TOOLCHAIN_VERSION=clang'
+
+                    def module_paths = [project.file("../../../cocos2d-x"),
+                                        project.file("../../../cocos2d-x/cocos"),
+                                        project.file("../../../cocos2d-x/external")]
+                    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+                        arguments 'NDK_MODULE_PATH=' + module_paths.join(";")
+                    }
+                    else {
+                        arguments 'NDK_MODULE_PATH=' + module_paths.join(':')
+                    }
+                    
+                    arguments '-j' + Runtime.runtime.availableProcessors()
+                    abiFilters.addAll(PROP_APP_ABI.split(':').collect{it as String})
+                }
+            }
+        }
+    }
+
+    sourceSets.main {
+        java.srcDirs "../src", "src"
+        res.srcDirs "../res", 'res'
+        jniLibs.srcDirs "../libs", 'libs'
+        manifest.srcFile "AndroidManifest.xml"
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            if (!project.hasProperty("PROP_NDK_MODE") || PROP_NDK_MODE.compareTo('none') != 0) {
+                // skip the NDK Build step if PROP_NDK_MODE is none
+                path "jni/Android.mk"
+            }
+        }
+    }
+
+    signingConfigs {
+        debug {
+            if (project.hasProperty("RELEASE_STORE_FILE")) {
+                storeFile file(RELEASE_STORE_FILE)
+                storePassword RELEASE_STORE_PASSWORD
+                keyAlias RELEASE_KEY_ALIAS
+                keyPassword RELEASE_KEY_PASSWORD
+            }
+        }
+       release {
+            if (project.hasProperty("RELEASE_STORE_FILE")) {
+                storeFile file(RELEASE_STORE_FILE)
+                storePassword RELEASE_STORE_PASSWORD
+                keyAlias RELEASE_KEY_ALIAS
+                keyPassword RELEASE_KEY_PASSWORD
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            debuggable false
+            jniDebuggable false
+            renderscriptDebuggable false
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (project.hasProperty("RELEASE_STORE_FILE")) {
+                signingConfig signingConfigs.release
+            }
+
+            externalNativeBuild {
+                ndkBuild {
+                    arguments 'NDK_DEBUG=0'
+                }
+            }
+        }
+
+        debug {
+            debuggable true
+            jniDebuggable true
+            renderscriptDebuggable true
+            externalNativeBuild {
+                ndkBuild {
+                    arguments 'NDK_DEBUG=1'
+                }
+            }
+        }
+    }
+
+    productFlavors {
+        // 通用包，可以支持PC模拟器
+        universal{
+            ndk {
+                abiFilters "arm64-v8a", "armeabi-v7a","x86"
+            }
+        }
+        // googleplay 提审包，不支持模拟器
+        googleplay{
+            ndk {
+                abiFilters "arm64-v8a", "armeabi-v7a"
+            }
+        }
+    }
+    packagingOptions {
+        exclude 'META-INF/proguard/okhttp3.pro'
+    }
+    //在apk文件后边生成版本号信息
+    android.applicationVariants.all {
+        variant ->
+            variant.outputs.all {
+                def releasedate = new Date().format("MMdd-HHmm");
+                def appName = defaultConfig.applicationId.split("\\.").last()
+                outputFileName = appName+ "_"+variant.productFlavors[0].name+ buildType.name + "_v${defaultConfig.versionName}(${defaultConfig.versionCode})_${releasedate}.apk"
+            }
+    }
+
+    configurations {
+        ftpAntTask
+    }
+}
+
+android.applicationVariants.all { variant ->
+    // delete previous files first
+    delete "${buildDir}/intermediates/merged_assets"
+
+    variant.mergeAssets.doLast {
+        def sourceDir = "${buildDir}/../../../../.."
+
+        copy {
+            from "${sourceDir}/res"
+            into "${outputDir}/res"
+        }
+
+        copy {
+            from "${sourceDir}/subpackages"
+            into "${outputDir}/subpackages"
+        }
+
+        copy {
+            from "${sourceDir}/src"
+            into "${outputDir}/src"
+        }
+
+        copy {
+            from "${sourceDir}/jsb-adapter"
+            into "${outputDir}/jsb-adapter"
+        }
+
+        copy {
+            from "${sourceDir}/main.js"
+            from "${sourceDir}/project.json"
+            into outputDir
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar','*.aar'])
+    implementation fileTree(dir: "../../../cocos2d-x/cocos/platform/android/java/libs", include: ['*.jar'])
+    implementation project(':libcocos2dx')
+
+//    implementation 'com.android.support:multidex:1.0.3'
+    implementation 'com.android.support:support-annotations:28.0.0'
+
+    //noinspection GradleCompatible
+    implementation 'com.android.support:support-v4:28.0.0'
+    // google firebase
+    // Check for v11.4.2 or higher
+    implementation 'com.google.firebase:firebase-core:17.4.4'
+
+//    // facebook login
+//    implementation('com.facebook.android:facebook-login:[5,6)', {
+//        exclude group: 'com.android.support', module: 'support-v4'
+//    })
+//    // facebook share
+//    implementation('com.facebook.android:facebook-share:[5,6)', {
+//        exclude group: 'com.android.support', module: 'support-v4'
+//    })
+
+    // google login
+//    implementation('com.google.android.gms:play-services-auth:17.0.0', {
+//        exclude group: 'com.android.support', module: 'support-v4'
+//    })
+//    implementation 'com.google.android.material:material:1.1.0'
+
+    implementation 'com.android.billingclient:billing:3.0.0'
+
+    // Recommended: Add the Firebase SDK for Google Analytics.
+    implementation 'com.google.firebase:firebase-analytics:17.4.4'
+//    // FCM消息推送
+//    implementation 'com.google.firebase:firebase-messaging:20.2.4'
+//
+//    implementation 'com.google.firebase:firebase-dynamic-links:19.1.0'
+    
+     //Anythink（Necessary）
+    api "com.anythink.sdk:core:5.6.8"
+    api "com.anythink.sdk:tramini-plugin:5.6.8"
+    api "com.anythink.sdk:nativead:5.6.8"
+    api "com.anythink.sdk:banner:5.6.8"
+    api "com.anythink.sdk:interstitial:5.6.8"
+    api "com.anythink.sdk:rewardedvideo:5.6.8"
+    api "com.anythink.sdk:splash:5.6.8"
+    api "com.anythink.sdk:headbidding:5.6.8"
+
+    //Androidx（Necessary）
+    api "androidx.appcompat:appcompat:1.1.0"
+
+    //Facebook
+    api "com.anythink.sdk:adapter-facebook:5.6.8"
+    api "com.facebook.android:audience-network-sdk:5.11.0"
+    api "androidx.recyclerview:recyclerview:1.0.0"
+    //Facebook headbidding doesn't support import by jcenter, you should import aar in libs.
+    // api(name:'BiddingKit', ext:'aar')
+
+    //Admob
+    api "com.anythink.sdk:adapter-admob:5.6.8"
+    api "com.google.android.gms:play-services-ads:19.3.0"
+    api "com.google.android.ads.consent:consent-library:1.0.8"
+
+    //AppLovin
+    api "com.anythink.sdk:adapter-applovin:5.6.8"
+    api "com.applovin:applovin-sdk:9.13.4"
+
+    //UnityAds
+    api "com.anythink.sdk:adapter-unityads:5.6.8"
+    api "com.unity3d.ads:unity-ads:3.4.8"
+
+    //Vungle
+    api "com.anythink.sdk:adapter-vungle:5.6.8"
+    api "com.vungle:publisher-sdk-android:6.7.1"
+    api "androidx.core:core:1.3.1"
+    api "androidx.localbroadcastmanager:localbroadcastmanager:1.0.0"
+    api "com.google.android.gms:play-services-ads-identifier:17.0.0"
+
+    //Inmobi
+    api "com.anythink.sdk:adapter-inmobi:5.6.8"
+    api "com.inmobi.monetization:inmobi-ads:9.0.8"
+    api "com.squareup.picasso:picasso:2.71828"
+    api "androidx.browser:browser:1.0.0"
+    api "androidx.recyclerview:recyclerview:1.0.0"
+    api "com.google.android.gms:play-services-ads-identifier:17.0.0"
+
+    //Ironsource
+    api "com.anythink.sdk:adapter-ironsource:5.6.8"
+    api "com.ironsource.sdk:mediationsdk:7.0.0"
+    api "com.google.android.gms:play-services-ads-identifier:17.0.0"
+
+    // tencent bugly
+    implementation 'com.tencent.bugly:crashreport:3.2.33' //其中latest.release指代最新Bugly SDK版本号，也可以指定明确的版本号，例如2.1.9
+    implementation 'com.tencent.bugly:nativecrashreport:3.7.3' //其中latest.release指代最新Bugly NDK版本号，也可以指定明确的版本号，例如3.0
+
+    //ftp
+    ftpAntTask("org.apache.ant:ant-commons-net:1.8.4") {
+        module("commons-net:commons-net:1.4.1")    {
+            dependencies "oro:oro:2.0.8:jar"
+        }
+    }
+
+    // auto update
+    implementation 'com.google.android.play:core:1.8.0'
+}
+apply plugin: 'com.google.gms.google-services'  // Google Play services Gradle plugin
+
+apply plugin: 'bugly'
+
+bugly {
+    appId = '2c2d383f70' // 注册时分配的App ID
+    appKey = '9a821db0-2851-402b-88df-9acb5942aeba' // 注册时分配的App Key
+}
+
+// 改为读取保存文件的形式
+def getVersionCode() {
+    def versionCodeFileName = "${System.getProperty('user.dir')}/gradle.properties"
+    def versionCodeFile = file(versionCodeFileName)
+    def versionCode = 1
+    FileOutputStream fos = null
+    try {
+        //获取文件内容
+        String content = versionCodeFile.getText().toString()
+
+        boolean change = false
+
+        Pattern pat = Pattern.compile("VERSION_CODE=[0-9]\\d*")
+        Matcher mat = pat.matcher(content)
+        if (mat.find()) {
+            String str = mat.group()
+            String[] parts = str.split("=")
+            versionCode = parts[1].toInteger()
+
+            def runTasks = gradle.startParameter.taskNames
+            for (String taskItem : runTasks) {
+                if (taskItem.matches("(?i)^(?::${project.name}:assemble).*(Release\$)")) {
+                    //versionCode自增
+                    versionCode++
+                    content = content.replaceAll(str, "VERSION_CODE=$versionCode")
+                    change = true
+                    break
+                }
+            }
+        }
+        else {
+            //写入初始VERSION_CODE
+            println "[getVersionCode] 找不到合法的VERSION_CODE"
+            content += "\nVERSION_CODE=$versionCode"
+            change = true
+        }
+
+        if (change) {
+            fos = new FileOutputStream(versionCodeFile)
+            fos.write(content.getBytes("UTF-8"))
+            println "[getVersionCode] versionCode修改成功, versionCode=$versionCode"
+        }
+    } catch (IOException e) {
+        e.printStackTrace()
+    } finally {
+        if (fos != null) {
+            try {
+                fos.close()
+            } catch (IOException e) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    return versionCode
+}
+
+//将gradle生成的googleplay release包推送到ftp服务器
+task uploadReleaseToFtp {
+    doLast {
+        ant {
+            taskdef(name: 'ftp',
+                    classname: 'org.apache.tools.ant.taskdefs.optional.net.FTP',
+                    classpath:  configurations.ftpAntTask.asPath)
+
+            String currentFlavor = ""
+            String tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
+            Pattern pattern
+            if(tskReqStr.contains("assemble"))
+                pattern = Pattern.compile("assemble(\\w+)(Release|Debug)")
+            else
+                pattern = Pattern.compile("generate(\\w+)(Release|Debug)")
+            Matcher matcher = pattern.matcher(tskReqStr)
+            if(matcher.find()) {
+                currentFlavor = matcher.group(1).toLowerCase()
+            }
+
+            println "[FTP] currentFlavor: ${(!currentFlavor.isEmpty() ? currentFlavor : "NO MATCH FOUND")}"
+
+            String outputFileName = ""
+            String outputDirectory = ""
+            android.applicationVariants.all { variant ->
+                variant.outputs.all { output ->
+                    if (!currentFlavor.isEmpty() && buildType.name.equals("release") && variant.productFlavors[0].name.equals(currentFlavor)) {
+                        outputFileName = output.outputFileName
+                        outputDirectory = variant.getPackageApplication().outputDirectory
+                    }
+                }
+            }
+
+            println "[FTP] $outputFileName, $outputDirectory"
+            if (!outputFileName.isEmpty() && !outputDirectory.isEmpty()) {
+                ftp(server: "192.168.2.11",
+                    userid: "lanwan",  //用户名
+                    password: "lanwan", //密码
+                    //上传后文件存储的目录
+                    remoteDir: "/brainstorm/") {
+                        //本地文件路径
+                        fileset(dir: outputDirectory) {
+                            include(name: outputFileName)
+                        }
+                    }
+            }
+        }
+    }
+}
+project.tasks.whenTaskAdded { Task theTask ->
+    if (theTask.name.matches("(?i)^(?:assemble).*(Release\$)")) {
+        theTask.dependsOn(uploadReleaseToFtp)            // 编译完apk之后再执行自定义task
+    }
+}
