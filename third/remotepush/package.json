@@ -1,0 +1,15 @@
+{
+  "name": "remotepush",
+  "version": "1.0.0",
+  "description": "",
+  "main": "iOS_APNs.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apn": "^2.2.0",
+    "firebase-admin": "^9.2.0"
+  }
+}
